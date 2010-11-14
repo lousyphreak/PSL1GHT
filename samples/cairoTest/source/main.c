@@ -19,12 +19,26 @@
 
 #include <math.h>
 
+#include <efb/efb.h>
+#include <psl1ght/lv2.h>
+#include <psl1ght/lv2/spu.h>
+#include <lv2/spu.h>
+
 gcmContextData *context; // Context to keep track of the RSX buffer.
 
 VideoResolution res; // Screen Resolution
 
 int currentBuffer = 0;
 buffer *buffers[2]; // The buffer we will be drawing into.
+
+efbData *efbD;
+uint32_t *offscreenBuffers[2];
+efbBuffer *efbBuffers[2];
+u32 offWidth=128*2;
+u32 offHeight=128*1;
+
+
+
 
 void waitFlip() { // Block the PPU thread untill the previous flip operation has finished.
 	while(gcmGetFlipStatus() != 0) 
@@ -76,7 +90,6 @@ void init_screen() {
 	vconfig.resolution = state.displayMode.resolution;
 	vconfig.format = VIDEO_BUFFER_FORMAT_XRGB;
 	vconfig.pitch = res.width * 4;
-	vconfig.aspect=state.displayMode.aspect;
 
 	assert(videoConfigure(0, &vconfig, NULL, 0) == 0);
 	assert(videoGetState(0, 0, &state) == 0); 
@@ -102,8 +115,10 @@ void drawFrame(buffer *buffer, long frame) {
 	 * If this gets too slow later with blending, we will need to create a buffer
          * on cell then copy the finished result accross.
 	 */
-	cairo_surface_t *surface = cairo_image_surface_create_for_data((u8 *) buffer->ptr, 
+	cairo_surface_t *surface = cairo_image_surface_create_for_data((u8 *) buffer->ptr,
 		CAIRO_FORMAT_RGB24, buffer->width, buffer->height, buffer->width * 4);
+//	cairo_surface_t *surface = cairo_image_surface_create_for_data((u8 *) buffer,
+//		CAIRO_FORMAT_RGB24, offWidth, offHeight, offWidth * 4);
 	assert(surface != NULL);
 	cr = cairo_create(surface);
 	assert(cr != NULL);
@@ -124,19 +139,70 @@ void drawFrame(buffer *buffer, long frame) {
 	cairo_surface_destroy(surface); // Flush and destroy the cairo surface
 }
 
+void init_efb()
+{
+	printf("sizeof(efbConfig)=%d\n",sizeof(efbConfig));
+	printf("sizeof(efbBuffer)=%d\n",sizeof(efbBuffer));
+
+	u32 buffersize=offWidth*offHeight*4;
+	printf("alloc buffers: %d\n",buffersize);
+	offscreenBuffers[0] = (uint32_t*)memalign(128,buffersize);
+	printf("osb1: 0x%08X\n",offscreenBuffers[0]);
+	offscreenBuffers[1] = (uint32_t*)memalign(128,buffersize);
+	printf("osb2: 0x%08X\n",offscreenBuffers[1]);
+
+	efbBuffers[0] = (efbBuffer*)memalign(128,sizeof(efbBuffer));
+	printf("efb1: 0x%08X\n",efbBuffers[0]);
+	efbBuffers[1] = (efbBuffer*)memalign(128,sizeof(efbBuffer));
+	printf("efb2: 0x%08X\n",efbBuffers[1]);
+
+	for(int i=0;i<2;i++)
+	{
+		printf("init buffer %d\n",i);
+		efbBuffers[i]->framebufferAddress=(u32)(u64)buffers[i];
+		efbBuffers[i]->paletteAddress=0;
+		efbBuffers[i]->height=buffers[i]->height;
+		efbBuffers[i]->width=buffers[i]->width;
+
+		efbBuffers[i]->rBits=8;
+		efbBuffers[i]->rShift=16;
+		efbBuffers[i]->gBits=8;
+		efbBuffers[i]->gShift=8;
+		efbBuffers[i]->bBits=8;
+		efbBuffers[i]->bShift=0;
+	}
+
+	efbConfig *conf=memalign(128,sizeof(efbConfig)*2);
+	conf->width=buffers[0]->width;
+	conf->height=buffers[0]->height;
+	efbD=efbInit(conf);
+	printf("~efbInit(0x%08X)\n",(u32)(u64)efbD);
+	//free(conf);
+
+	printf("efb init finished\n");
+}
+
 s32 main(s32 argc, const char* argv[])
 {
 	PadInfo padinfo;
 	PadData paddata;
 	int i;
 	
+	printf("Initializing 6 SPUs... ");
+	printf("%08x\n", lv2SpuInitialize(6, 5));
+
+	printf("init_screen()\n");
 	init_screen();
+	printf("ioPadInit()\n");
 	ioPadInit(7);
+	printf("init_efb()\n");
+	init_efb();
 
 	long frame = 0; // To keep track of how many frames we have rendered.
 	
 	// Ok, everything is setup. Now for the main loop.
 	while(1){
+		printf("frame\n");
 		// Check the pads.
 		ioPadGetInfo(&padinfo);
 		for(i=0; i<MAX_PADS; i++){
