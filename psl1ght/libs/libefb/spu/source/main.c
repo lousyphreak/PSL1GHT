@@ -35,8 +35,12 @@ void main()
 			//send finished
 			spu_writech(SPU_WrOutMbox, EFB_RESPONSE_CONFIG_FINISHED);
 			break;
+		case EFB_COMMAND_QUIT:
+			running=0;
+			break;
 		default:
 			spu_writech(SPU_WrOutMbox, 0xFA110000|command);
 		}
 	}
+	return;
 }

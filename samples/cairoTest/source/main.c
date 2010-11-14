@@ -34,10 +34,10 @@ buffer *buffers[2]; // The buffer we will be drawing into.
 efbData *efbD;
 uint32_t *offscreenBuffers[2];
 efbBuffer *efbBuffers[2];
-//u32 offWidth=128*10;
-//u32 offHeight=128*6;
-u32 offWidth=1920;
-u32 offHeight=1080;
+u32 offWidth=128*1;
+u32 offHeight=128*1;
+//u32 offWidth=1920;
+//u32 offHeight=1080;
 
 
 
@@ -129,11 +129,11 @@ void drawFrame(buffer *buffer, long frame) {
 	cairo_set_source_rgb (cr, 1.0, 1.0, 1.0); // White
 	cairo_paint(cr);
 
-	cairo_set_line_width(cr, 30.0); // 30 pixel wide line
+	cairo_set_line_width(cr, 10.0); // 30 pixel wide line
 	cairo_set_source_rgb (cr, 1.0, 0.5, 0.0); // Orange
 
-	float angle = (frame % 600) / 300.0; // Rotation animaton, rotate once every 10 seconds.
-	cairo_arc(cr, res.width/2, res.height/2, res.height/3, angle*M_PI, (angle-0.3)*M_PI);
+	float angle = (frame % 600) / 100.0; // Rotation animaton, rotate once every 10 seconds.
+	cairo_arc(cr, offWidth/2, offHeight/2, offHeight/3, angle*M_PI, (angle-0.3)*M_PI);
 	cairo_stroke(cr); // Stroke the arc with our 30px wide orange line
 
 	cairo_destroy(cr); // Realease Surface
@@ -143,20 +143,20 @@ void drawFrame(buffer *buffer, long frame) {
 
 void init_efb()
 {
-	printf("sizeof(efbConfig)=%d\n",sizeof(efbConfig));
-	printf("sizeof(efbBuffer)=%d\n",sizeof(efbBuffer));
+	printf("sizeof(efbConfig)=%d\n",(u32)(u64)sizeof(efbConfig));
+	printf("sizeof(efbBuffer)=%d\n",(u32)(u64)sizeof(efbBuffer));
 
 	u32 buffersize=offWidth*offHeight*4;
 	printf("alloc buffers: %d\n",buffersize);
 	offscreenBuffers[0] = (uint32_t*)memalign(128,buffersize);
-	printf("osb1: 0x%08X\n",offscreenBuffers[0]);
+	printf("osb1: 0x%08X\n",(u32)(u64)offscreenBuffers[0]);
 	offscreenBuffers[1] = (uint32_t*)memalign(128,buffersize);
-	printf("osb2: 0x%08X\n",offscreenBuffers[1]);
+	printf("osb2: 0x%08X\n",(u32)(u64)offscreenBuffers[1]);
 
 	efbBuffers[0] = (efbBuffer*)memalign(128,sizeof(efbBuffer));
-	printf("efb1: 0x%08X\n",efbBuffers[0]);
+	printf("efb1: 0x%08X\n",(u32)(u64)efbBuffers[0]);
 	efbBuffers[1] = (efbBuffer*)memalign(128,sizeof(efbBuffer));
-	printf("efb2: 0x%08X\n",efbBuffers[1]);
+	printf("efb2: 0x%08X\n",(u32)(u64)efbBuffers[1]);
 
 	for(int i=0;i<2;i++)
 	{
@@ -174,7 +174,9 @@ void init_efb()
 		efbBuffers[i]->bShift=0;
 	}
 
-	efbConfig *conf=memalign(128,sizeof(efbConfig)*2);
+	efbConfig *conf=memalign(128,sizeof(efbConfig));
+	//conf->width=128*10;//buffers[0]->width/2;
+	//conf->height=128*6;//buffers[0]->height/2;
 	conf->width=buffers[0]->width;
 	conf->height=buffers[0]->height;
 	efbD=efbInit(conf);
@@ -186,6 +188,9 @@ void init_efb()
 
 s32 main(s32 argc, const char* argv[])
 {
+	printf("init_screen()\n");
+	init_screen();
+
 	PadInfo padinfo;
 	PadData paddata;
 	int i;
@@ -193,8 +198,6 @@ s32 main(s32 argc, const char* argv[])
 	printf("Initializing 6 SPUs... ");
 	printf("%08x\n", lv2SpuInitialize(6, 5));
 
-	printf("init_screen()\n");
-	init_screen();
 	printf("ioPadInit()\n");
 	ioPadInit(7);
 	printf("init_efb()\n");
@@ -222,16 +225,32 @@ s32 main(s32 argc, const char* argv[])
 		waitFlip(); // Wait for the last flip to finish, so we can draw to the old buffer
 
 		printf("drawFrame\n");
-		drawFrame(offscreenBuffers[currentBuffer], frame++); // Draw into the unused buffer
-		//drawFrame(buffers[currentBuffer], frame++); // Draw into the unused buffer
+		if(1)
+		{
+			//drawFrame(buffers[currentBuffer], frame); // Draw into the unused buffer6
+			drawFrame((buffer*)offscreenBuffers[0], frame); // Draw into the unused buffer
+		}
+		else
+		{
+			for(int xy=0;xy<offWidth*offHeight;xy++)
+			{
+				if(currentBuffer)
+					offscreenBuffers[0][xy]=xy*2;//%offWidth;
+				else
+					offscreenBuffers[0][xy]=xy*2;//%offWidth;
+			}
+		}
 		printf("efbBlitToScreen\n");
-		efbBlitToScreen(efbD, buffers[currentBuffer],efbBuffers[currentBuffer]);
+		efbBlitToScreen(efbD, buffers[currentBuffer]->ptr,efbBuffers[0]);
 		printf("flip\n");
 		flip(currentBuffer); // Flip buffer onto screen
 		printf("currentBuffer\n");
 		currentBuffer = !currentBuffer; 
+		frame++;
+		//if(frame>4)
+		//	break;
 	}
-	
+	efbShutdown(efbD);
 	return 0;
 }
 

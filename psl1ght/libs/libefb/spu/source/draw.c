@@ -58,12 +58,12 @@ void bufferSource(void *src, u16 y, u16 lineWidth)
 	u32 tag=1;
 	volatile u32 *buffer=inBuffer1;
 
-	mfc_get(buffer,(u64)(u32)src+lineWidth*y,lineWidth,tag,0,0);
+	mfc_get(buffer,(u64)(u32)src+lineWidth*y*4,lineWidth*4,tag,0,0);
 	mfc_write_tag_mask(1<<tag);
 	mfc_read_tag_status_all();
 
 	return;
-
+/*
 	//spu_writech(SPU_WrOutMbox, 0x1234);
 	for(u16 i=0;i<SRC_PREBUFFER;i++)
 	{
@@ -81,7 +81,7 @@ void bufferSource(void *src, u16 y, u16 lineWidth)
 			mfc_write_tag_mask(1<<tag);
 			mfc_read_tag_status_all();
 		}
-	}
+	}*/
 }
 u16 targetBuffered=0;
 
@@ -90,12 +90,12 @@ void bufferTarget(void *target, u16 y, u16 lineWidth)
 	u32 tag=1;
 	volatile u32 *buffer=outBuffer1;
 
-	mfc_put(buffer,(u64)(u32)target+lineWidth*y,lineWidth,tag,0,0);
+	mfc_put(buffer,((u64)(u32)target)+lineWidth*y*4,lineWidth*4,tag,0,0);
 	mfc_write_tag_mask(1<<tag);
 	mfc_read_tag_status_all();
 
 	return;
-
+/*
 	for(u16 i=0;i<SRC_PREBUFFER;i++)
 	{
 		u16 ty=y+i;
@@ -112,7 +112,7 @@ void bufferTarget(void *target, u16 y, u16 lineWidth)
 			mfc_write_tag_mask(1<<tag);
 			mfc_read_tag_status_all();
 		}
-	}
+	}*/
 }
 
 /*
@@ -146,8 +146,11 @@ void draw()
 	spu_writech(SPU_WrOutMbox, _config.width);
 	spu_writech(SPU_WrOutMbox, _config.height);
 */
-	float widthRatio=inBuffer.width/(float)_config.height;
-	float heightRatio=inBuffer.height/(float)_config.width;
+	float widthRatio=inBuffer.width/(float)_config.width;
+	float heightRatio=inBuffer.height/(float)_config.height;
+
+	spu_writech(SPU_WrOutMbox, (u32)(widthRatio*10000));
+	spu_writech(SPU_WrOutMbox, (u32)(heightRatio*10000));
 
 	for(u16 y=0;y<_config.height;y++)
 	{
@@ -155,10 +158,12 @@ void draw()
 		u16 srcY=y*heightRatio;
 		//spu_writech(SPU_WrOutMbox, 0x1200000|srcY);
 		bufferSource((void*)inBuffer.framebufferAddress,srcY,inBuffer.width);
+		//spu_writech(SPU_WrOutMbox, (u32)y);
+		//spu_writech(SPU_WrOutMbox, (u32)srcY);
 
 		for(u16 x=0;x<_config.width;x++)
 		{
-			u16 srcX=y*widthRatio;
+			u16 srcX=x*widthRatio;
 
 			volatile u32 *dstBuffer=outBuffer1;//getOutBuffer(y);
 			volatile u32 *srcBuffer=inBuffer1;//getInBuffer(srcY);
