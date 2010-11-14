@@ -11,24 +11,26 @@
 //efbBuffer efbCreateBufferPalette2(u16 width, u16 height);
 //efbBuffer efbCreateBufferPalette(u16 width, u16 height, void *frameBuffer, void *palette);
 
-
+u32 spu;
+u32 efbinitialized;
 efbData *efbInit(efbConfig *config)
 {
 	printf("efbInit()\n");
-	efbData *ret=malloc(sizeof(efbData));
+	efbData *ret=malloc(1024/*sizeof(efbData)*/);
 	printf("  efbdata: 0x%08X\n",(u32)(u64)ret);
 
-	ret->spu=uploadSPUProgram();
-	printf("  spu: %d\n",ret->spu);
+	spu=uploadSPUProgram();
+	printf("  spu: %d\n",spu);
 
-	ret->initialized=startSPU(ret->spu);
-	printf("  initialized: %X\n",(u32)(u64)ret->initialized);
+	efbinitialized=startSPU(spu);
+	printf("  initialized: %X\n",(u32)(u64)efbinitialized);
 
 	// magig number sent from spu on startup :P
-	assert(ret->initialized==0xB1176060);
+	assert(efbinitialized==0xB1176060);
 
 	printf("  writing config: 0x%08X\n",(u32)(u64)config);
 	efbUpdateConfig(ret,config);
+
 	return ret;
 }
 
@@ -48,24 +50,36 @@ void efbShutdown(efbData *efb)
 void efbUpdateConfig(efbData *efb,efbConfig *config)
 {
 	printf("update config...\n");
-	u32 ret= spuWriteVerify(efb->spu,EFB_COMMAND_UPDATE_CONFIG);//framebuffer
-	printf("config command sent: %d\n",ret);
-	spuWrite(efb->spu,(u32)(u64)config);//framebuffer
+	u32 ret= spuWriteVerify(spu,EFB_COMMAND_UPDATE_CONFIG);//framebuffer
+	printf("config command sent: %d, config: 0x%08X\n",ret,(u32)(u64)config);
+	spuWrite(spu,(u32)(u64)config);//framebuffer
 	printf("waiting for accept...\n");
-	u32 val=spuReadBlocking(efb->spu);
+	u32 val=spuReadBlocking(spu);
 	printf("answer: 0x%08X\n",val);
 	assert(val==EFB_RESPONSE_CONFIG_FINISHED);
 }
 
 void efbBlitToScreen(efbData *efb, void *framebuffer, efbBuffer *buffer)
 {
-	spuWriteVerify(efb->spu,EFB_COMMAND_DRAW);
-	spuWrite(efb->spu,(u32)(u64)framebuffer);
-	spuWrite(efb->spu,(u32)(u64)buffer);
+	printf("efbBlitToScreen\n");
+	printf("  EFB_COMMAND_DRAW\n");
+	u32 ret=spuWriteVerify(spu,EFB_COMMAND_DRAW);
+	printf("  result: 0x%08X\n",ret);
+	assert(ret==EFB_COMMAND_DRAW);
+	printf("  write fb address: 0x%08X\n",(u32)(u64)framebuffer);
+	spuWrite(spu,(u32)(u64)framebuffer);
+	printf("  write buffer address: 0x%08X\n",(u32)(u64)buffer);
+	spuWrite(spu,(u32)(u64)buffer);
 
-	//this should move to efbWaitForBlit
-	u32 val=spuReadBlocking(efb->spu);
-	assert(val==EFB_RESPONSE_DRAW_FINISHED);
+	u32 result=-1;
+	while(result!=EFB_RESPONSE_DRAW_FINISHED)
+	{
+		printf("  read result\n");
+		//this should move to efbWaitForBlit
+		result=spuReadBlocking(spu);
+		printf("  result: 0x%08X\n",result);
+	}
+//	assert(val==EFB_RESPONSE_DRAW_FINISHED);
 }
 
 void efbWaitForBlit(efbData *efb)

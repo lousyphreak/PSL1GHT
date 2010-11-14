@@ -27,10 +27,16 @@ void main()
 		{
 		case EFB_COMMAND_DRAW:
 			draw();
+			//send finished
+			spu_writech(SPU_WrOutMbox, EFB_RESPONSE_DRAW_FINISHED);
 			break;
 		case EFB_COMMAND_UPDATE_CONFIG:
 			check_config();
+			//send finished
+			spu_writech(SPU_WrOutMbox, EFB_RESPONSE_CONFIG_FINISHED);
 			break;
+		default:
+			spu_writech(SPU_WrOutMbox, 0xFA110000|command);
 		}
 	}
 }

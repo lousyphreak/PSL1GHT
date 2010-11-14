@@ -5,29 +5,29 @@
 //#define OUT_BUFFERNUM  4
 
 
-efbBuffer inBuffer __attribute__((aligned(128)));
+volatile efbBuffer inBuffer __attribute__((aligned(128)));
 
-u32 outBuffer1[BUFFERSIZE] __attribute__((aligned(128)));
-u32 outBuffer2[BUFFERSIZE] __attribute__((aligned(128)));
-u32 outBuffer3[BUFFERSIZE] __attribute__((aligned(128)));
-u32 outBuffer4[BUFFERSIZE] __attribute__((aligned(128)));
+volatile u32 outBuffer1[BUFFERSIZE] __attribute__((aligned(128)));
+volatile u32 outBuffer2[BUFFERSIZE] __attribute__((aligned(128)));
+volatile u32 outBuffer3[BUFFERSIZE] __attribute__((aligned(128)));
+volatile u32 outBuffer4[BUFFERSIZE] __attribute__((aligned(128)));
 
-u32 inBuffer1[BUFFERSIZE] __attribute__((aligned(128)));
-u32 inBuffer2[BUFFERSIZE] __attribute__((aligned(128)));
-u32 inBuffer3[BUFFERSIZE] __attribute__((aligned(128)));
-u32 inBuffer4[BUFFERSIZE] __attribute__((aligned(128)));
+volatile u32 inBuffer1[BUFFERSIZE] __attribute__((aligned(128)));
+volatile u32 inBuffer2[BUFFERSIZE] __attribute__((aligned(128)));
+volatile u32 inBuffer3[BUFFERSIZE] __attribute__((aligned(128)));
+volatile u32 inBuffer4[BUFFERSIZE] __attribute__((aligned(128)));
 
-#define SRC_PREBUFFER 4
-#define SRC_PREBUFFER_NEED 2
-#define TARGET_PREBUFFER 4
-#define TARGET_PREBUFFER_NEED 2
+#define SRC_PREBUFFER 1
+#define SRC_PREBUFFER_NEED 1
+#define TARGET_PREBUFFER 1
+#define TARGET_PREBUFFER_NEED 1
 
 void bufferSource(void *src, u16 y, u16 lineWidth);
 void bufferTarget(void *target, u16 y, u16 lineWidth);
 
 u16 srcBuffered=0;
 
-u32 *getInBuffer(u16 which)
+volatile u32 *getInBuffer(u16 which)
 {
 	if(which==0)
 		return inBuffer1;
@@ -40,7 +40,7 @@ u32 *getInBuffer(u16 which)
 	return 0;
 }
 
-u32 *getOutBuffer(u16 which)
+volatile u32 *getOutBuffer(u16 which)
 {
 	if(which==0)
 		return outBuffer1;
@@ -55,13 +55,23 @@ u32 *getOutBuffer(u16 which)
 
 void bufferSource(void *src, u16 y, u16 lineWidth)
 {
+	u32 tag=1;
+	volatile u32 *buffer=inBuffer1;
+
+	mfc_get(buffer,(u64)(u32)src+lineWidth*y,lineWidth,tag,0,0);
+	mfc_write_tag_mask(1<<tag);
+	mfc_read_tag_status_all();
+
+	return;
+
+	//spu_writech(SPU_WrOutMbox, 0x1234);
 	for(u16 i=0;i<SRC_PREBUFFER;i++)
 	{
 		u16 ty=y+i;
 		u16 tag=ty%4+1;
 		if(srcBuffered<ty)
 		{
-			u32 *buffer=getInBuffer(tag-1);
+			volatile u32 *buffer=getInBuffer(tag-1);
 
 			mfc_get(buffer,(u64)(u32)src+lineWidth*ty,lineWidth,tag,0,0);
 		}
@@ -77,13 +87,22 @@ u16 targetBuffered=0;
 
 void bufferTarget(void *target, u16 y, u16 lineWidth)
 {
+	u32 tag=1;
+	volatile u32 *buffer=outBuffer1;
+
+	mfc_put(buffer,(u64)(u32)target+lineWidth*y,lineWidth,tag,0,0);
+	mfc_write_tag_mask(1<<tag);
+	mfc_read_tag_status_all();
+
+	return;
+
 	for(u16 i=0;i<SRC_PREBUFFER;i++)
 	{
 		u16 ty=y+i;
 		u16 tag=ty%4+6;
 		if(targetBuffered<ty)
 		{
-			u32 *buffer=getOutBuffer(tag-1);
+			volatile u32 *buffer=getOutBuffer(tag-1);
 
 			mfc_put(buffer,(u64)(u32)target+lineWidth*ty,lineWidth,tag,0,0);
 		}
@@ -112,30 +131,41 @@ void draw()
 	mfc_write_tag_mask(1<<1);
 	mfc_read_tag_status_all();
 
+	spu_writech(SPU_WrOutMbox, inBuffer.width);
+	spu_writech(SPU_WrOutMbox, inBuffer.height);
+	spu_writech(SPU_WrOutMbox, _config.width);
+	spu_writech(SPU_WrOutMbox, _config.height);
+/*
+	_config.height=128;
+	_config.width=128*2;
+	inBuffer.height=128;
+	inBuffer.width=128*2;
+
+	spu_writech(SPU_WrOutMbox, inBuffer.width);
+	spu_writech(SPU_WrOutMbox, inBuffer.height);
+	spu_writech(SPU_WrOutMbox, _config.width);
+	spu_writech(SPU_WrOutMbox, _config.height);
+*/
 	float widthRatio=inBuffer.width/(float)_config.height;
 	float heightRatio=inBuffer.height/(float)_config.width;
 
-
 	for(u16 y=0;y<_config.height;y++)
 	{
+		//spu_writech(SPU_WrOutMbox, 0x1100000|y);
 		u16 srcY=y*heightRatio;
+		//spu_writech(SPU_WrOutMbox, 0x1200000|srcY);
 		bufferSource((void*)inBuffer.framebufferAddress,srcY,inBuffer.width);
 
 		for(u16 x=0;x<_config.width;x++)
 		{
 			u16 srcX=y*widthRatio;
 
-			u32 *dstBuffer=getOutBuffer(y);
-			u32 *srcBuffer=getInBuffer(srcY);
+			volatile u32 *dstBuffer=outBuffer1;//getOutBuffer(y);
+			volatile u32 *srcBuffer=inBuffer1;//getInBuffer(srcY);
 
 			dstBuffer[x]=srcBuffer[srcX];
 		}
 		bufferTarget((void*)targetAddress,y,_config.width);
 	}
-
-
-
-//send finished
-	spu_writech(SPU_WrOutMbox, EFB_RESPONSE_CONFIG_FINISHED);
 }
 

@@ -34,8 +34,10 @@ buffer *buffers[2]; // The buffer we will be drawing into.
 efbData *efbD;
 uint32_t *offscreenBuffers[2];
 efbBuffer *efbBuffers[2];
-u32 offWidth=128*2;
-u32 offHeight=128*1;
+//u32 offWidth=128*10;
+//u32 offHeight=128*6;
+u32 offWidth=1920;
+u32 offHeight=1080;
 
 
 
@@ -115,10 +117,10 @@ void drawFrame(buffer *buffer, long frame) {
 	 * If this gets too slow later with blending, we will need to create a buffer
          * on cell then copy the finished result accross.
 	 */
-	cairo_surface_t *surface = cairo_image_surface_create_for_data((u8 *) buffer->ptr,
-		CAIRO_FORMAT_RGB24, buffer->width, buffer->height, buffer->width * 4);
-//	cairo_surface_t *surface = cairo_image_surface_create_for_data((u8 *) buffer,
-//		CAIRO_FORMAT_RGB24, offWidth, offHeight, offWidth * 4);
+	//cairo_surface_t *surface = cairo_image_surface_create_for_data((u8 *) buffer->ptr,
+	//	CAIRO_FORMAT_RGB24, buffer->width, buffer->height, buffer->width * 4);
+	cairo_surface_t *surface = cairo_image_surface_create_for_data((u8 *) buffer,
+		CAIRO_FORMAT_RGB24, offWidth, offHeight, offWidth * 4);
 	assert(surface != NULL);
 	cr = cairo_create(surface);
 	assert(cr != NULL);
@@ -159,10 +161,10 @@ void init_efb()
 	for(int i=0;i<2;i++)
 	{
 		printf("init buffer %d\n",i);
-		efbBuffers[i]->framebufferAddress=(u32)(u64)buffers[i];
+		efbBuffers[i]->framebufferAddress=(u32)(u64)offscreenBuffers[i];
 		efbBuffers[i]->paletteAddress=0;
-		efbBuffers[i]->height=buffers[i]->height;
-		efbBuffers[i]->width=buffers[i]->width;
+		efbBuffers[i]->height=offHeight;
+		efbBuffers[i]->width=offWidth;
 
 		efbBuffers[i]->rBits=8;
 		efbBuffers[i]->rShift=16;
@@ -216,9 +218,17 @@ s32 main(s32 argc, const char* argv[])
 			
 		}
 
+		printf("waitFlip\n");
 		waitFlip(); // Wait for the last flip to finish, so we can draw to the old buffer
-		drawFrame(buffers[currentBuffer], frame++); // Draw into the unused buffer
+
+		printf("drawFrame\n");
+		drawFrame(offscreenBuffers[currentBuffer], frame++); // Draw into the unused buffer
+		//drawFrame(buffers[currentBuffer], frame++); // Draw into the unused buffer
+		printf("efbBlitToScreen\n");
+		efbBlitToScreen(efbD, buffers[currentBuffer],efbBuffers[currentBuffer]);
+		printf("flip\n");
 		flip(currentBuffer); // Flip buffer onto screen
+		printf("currentBuffer\n");
 		currentBuffer = !currentBuffer; 
 	}
 	

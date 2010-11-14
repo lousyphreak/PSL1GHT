@@ -10,6 +10,4 @@ void check_config()
 	mfc_get(&_config, newconfig, sizeof(_config),tag,0,0);
 	mfc_write_tag_mask(tag_mask);
 	mfc_read_tag_status_all();
-
-	spu_writech(SPU_WrOutMbox, EFB_RESPONSE_CONFIG_FINISHED);
 }

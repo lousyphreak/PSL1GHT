@@ -34,9 +34,15 @@ u32 spuRead(u32 spu)
 
 u32 spuReadBlocking(u32 spu)
 {
+	u32 count=0;
 	while (!(lv2SpuRawReadProblemStorage(spu, 0x4014) & 0xFF)) {
 		asm volatile("eieio" ::);
+		count++;
+		if(count>100000)
+			break;
 	}
+	if(count>10000)
+		printf("readblocking failed\n");
 	u32 ret=lv2SpuRawReadProblemStorage(spu, SPU_Out_MBox);
 	//printf("SPU mailbox return value: 0x%08x\n", ret);
 
@@ -45,11 +51,11 @@ u32 spuReadBlocking(u32 spu)
 
 u32 uploadSPUProgram()
 {
-	u32 spu=3;
+	u32 spu=0;
+	sysSpuImage image;
 	u32 entry = 0;
 	u32 segmentcount = 0;
 	sysSpuSegment* segments;
-	sysSpuImage image;
 
 	printf("Initializing raw SPU... ");
 	printf("%08x\n", lv2SpuRawCreate(&spu, NULL));
@@ -59,7 +65,7 @@ u32 uploadSPUProgram()
 	printf("\tEntry Point: %08x\n\tSegment Count: %08x\n", entry, segmentcount);
 
 	size_t segmentsize = sizeof(sysSpuSegment) * segmentcount;
-	segments = (sysSpuSegment*)malloc(segmentsize);
+	segments = (sysSpuSegment*)memalign(128,1<<13/*segmentsize*/);
 	memset(segments, 0, segmentsize);
 
 	printf("Getting ELF segments... ");

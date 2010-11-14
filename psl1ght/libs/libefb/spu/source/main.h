@@ -13,8 +13,8 @@ typedef   signed long long s64;
 #define TAG_READ 1
 #define TAG_WRITE 2
 
-#define EFB_COMMAND_DRAW  0
-#define EFB_COMMAND_UPDATE_CONFIG 1
+#define EFB_COMMAND_DRAW  1
+#define EFB_COMMAND_UPDATE_CONFIG 2
 
 #define EFB_RESPONSE_DRAW_FINISHED 1
 #define EFB_RESPONSE_CONFIG_FINISHED 2
