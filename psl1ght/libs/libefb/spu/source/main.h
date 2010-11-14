@@ -3,6 +3,8 @@
 #include <spu_intrinsics.h>
 #include <spu_mfcio.h>
 
+typedef unsigned char      u8;
+typedef   signed char      s8;
 typedef unsigned short     u16;
 typedef   signed short     s16;
 typedef unsigned int       u32;
@@ -69,3 +71,5 @@ extern efbConfig _config;
 void draw();
 u32 spuReadVerify();
 void check_config();
+u32 convertColor(efbBuffer *inBuffer, void *cacheLine, u16 x);
+

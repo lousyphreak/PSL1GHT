@@ -120,7 +120,7 @@ void drawFrame(buffer *buffer, long frame) {
 	//cairo_surface_t *surface = cairo_image_surface_create_for_data((u8 *) buffer->ptr,
 	//	CAIRO_FORMAT_RGB24, buffer->width, buffer->height, buffer->width * 4);
 	cairo_surface_t *surface = cairo_image_surface_create_for_data((u8 *) buffer,
-		CAIRO_FORMAT_RGB24, offWidth, offHeight, offWidth * 4);
+		CAIRO_FORMAT_RGB16_565, offWidth, offHeight, offWidth * 2);
 	assert(surface != NULL);
 	cr = cairo_create(surface);
 	assert(cr != NULL);
@@ -166,12 +166,22 @@ void init_efb()
 		efbBuffers[i]->height=offHeight;
 		efbBuffers[i]->width=offWidth;
 
+		efbBuffers[i]->bytesPerPixel=2;
+		efbBuffers[i]->rBits=5;
+		efbBuffers[i]->rShift=11;
+		efbBuffers[i]->gBits=6;
+		efbBuffers[i]->gShift=5;
+		efbBuffers[i]->bBits=5;
+		efbBuffers[i]->bShift=0;
+/*
+		efbBuffers[i]->bytesPerPixel=4;
 		efbBuffers[i]->rBits=8;
 		efbBuffers[i]->rShift=16;
 		efbBuffers[i]->gBits=8;
 		efbBuffers[i]->gShift=8;
 		efbBuffers[i]->bBits=8;
 		efbBuffers[i]->bShift=0;
+*/
 	}
 
 	efbConfig *conf=memalign(128,sizeof(efbConfig));
