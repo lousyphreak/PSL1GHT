@@ -10,7 +10,7 @@ BUILD		:=	build
 SOURCE		:=	source
 INCLUDE		:=	include
 DATA		:=	data
-LIBS		:=	-lgcm_sys -lreality -lsysutil -lio -lcairo -lm -lfreetype -lz -lpixman-1 -lpng
+LIBS		:=	-lgcm_sys -lreality -lsysutil -lio -lcairo -lm -lfreetype -lz -lpixman-1 -lpng -lefb
 
 
 TITLE		:=	CairoAnimationTest
