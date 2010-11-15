@@ -41,8 +41,8 @@ u32 spuReadBlocking(u32 spu)
 		if(count>1000000)
 			break;
 	}
-	if(count>100000)
-		printf("readblocking failed\n");
+	//if(count>100000)
+	//	printf("readblocking failed\n");
 	u32 ret=lv2SpuRawReadProblemStorage(spu, SPU_Out_MBox);
 	//printf("SPU mailbox return value: 0x%08x\n", ret);
 

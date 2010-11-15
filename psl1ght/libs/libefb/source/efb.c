@@ -99,7 +99,7 @@ void efbBlitToScreen(efbData *efb, void *framebuffer, efbBuffer *buffer)
 		//printf("efbBlitToScreen\n");
 		//printf("  EFB_COMMAND_DRAW\n");
 		u32 ret=spuWriteVerify(efb->spudata[i].spu,EFB_COMMAND_DRAW);
-		//printf("  result: 0x%08X\n",ret);
+		//printf("  inform spu: %d\n",efb->spudata[i].spu);
 		assert(ret==EFB_COMMAND_DRAW);
 		//printf("  write fb address: 0x%08X\n",(u32)(u64)framebuffer);
 		spuWrite(efb->spudata[i].spu,(u32)(u64)framebuffer);
@@ -109,7 +109,21 @@ void efbBlitToScreen(efbData *efb, void *framebuffer, efbBuffer *buffer)
 		startLine+=partsize;
 		if(i==efb->numSpus-1)
 			startLine=efb->currentConfig.height;
-		spuWrite(efb->spudata[i].spu,startLine);
+		spuWrite(efb->spudata[i].spu,startLine/** /-partsize/2*/);
+		efb->spudata[i].status=EFB_SPU_STATUS_DRAWING;
+	}
+	//	assert(val==EFB_RESPONSE_DRAW_FINISHED);
+
+	//efbWaitForBlit(efb);
+}
+
+void efbWaitForBlit(efbData *efb)
+{
+	u32 i;
+	for(i=0;i<efb->numSpus;i++)
+	{
+		if(efb->spudata[i].status!=EFB_SPU_STATUS_DRAWING)
+			break;
 
 		u32 result=-1;
 		while(result!=EFB_RESPONSE_DRAW_FINISHED)
@@ -119,15 +133,10 @@ void efbBlitToScreen(efbData *efb, void *framebuffer, efbBuffer *buffer)
 			result=spuReadBlocking(efb->spudata[i].spu);
 			//printf("  result: 0x%08X\n",result);
 		}
+		efb->spudata[i].status=EFB_SPU_STATUS_IDLE;
 	}
-	//	assert(val==EFB_RESPONSE_DRAW_FINISHED);
-}
-
-void efbWaitForBlit(efbData *efb)
-{
 }
 
 void finishOp(u32 spu)
 {
-
 }

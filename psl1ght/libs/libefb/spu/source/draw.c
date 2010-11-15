@@ -143,10 +143,10 @@ void draw()
 		inBuffer.paletteAddress=(u32)inPalette;
 	}
 
-	spu_writech(SPU_WrOutMbox, inBuffer.width);
-	spu_writech(SPU_WrOutMbox, inBuffer.height);
-	spu_writech(SPU_WrOutMbox, _config.width);
-	spu_writech(SPU_WrOutMbox, _config.height);
+	//spu_writech(SPU_WrOutMbox, inBuffer.width);
+	//spu_writech(SPU_WrOutMbox, inBuffer.height);
+	//spu_writech(SPU_WrOutMbox, _config.width);
+	//spu_writech(SPU_WrOutMbox, _config.height);
 /*
 	_config.height=128;
 	_config.width=128*2;
@@ -161,8 +161,8 @@ void draw()
 	float widthRatio=inBuffer.width/(float)_config.width;
 	float heightRatio=inBuffer.height/(float)_config.height;
 
-	spu_writech(SPU_WrOutMbox, (u32)(widthRatio*10000));
-	spu_writech(SPU_WrOutMbox, (u32)(heightRatio*10000));
+	//spu_writech(SPU_WrOutMbox, (u32)(widthRatio*10000));
+	//spu_writech(SPU_WrOutMbox, (u32)(heightRatio*10000));
 
 	for(u16 y=startLine;y<endLine;y++)
 	{
@@ -173,7 +173,7 @@ void draw()
 		//spu_writech(SPU_WrOutMbox, (u32)y);
 		//spu_writech(SPU_WrOutMbox, (u32)srcY);
 
-		for(u16 x=0;x<_config.width;x++)
+		for(u16 x=0;x<_config.width;x+=1)
 		{
 			u16 srcX=x*widthRatio;
 
