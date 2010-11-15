@@ -11,9 +11,16 @@
 #define EFB_RESPONSE_DRAW_FINISHED 0x11102221
 #define EFB_RESPONSE_CONFIG_FINISHED 2
 
+#define EFB_SPU_STATUS_INACTIVE 0
+#define EFB_SPU_STATUS_IDLE 1
+#define EFB_SPU_STATUS_DRAWING 2
+#define EFB_SPU_STATUS_CONFIG 2
+
+
 void spuWrite(u32 spu,u32 val);
 u32 spuWriteVerify(u32 spu,u32 val);
 u32 spuRead(u32 spu);
 u32 spuReadBlocking(u32 spu);
 u32 uploadSPUProgram();
 u32 startSPU(u32 spu);
+void finishOp(u32 spu);

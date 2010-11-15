@@ -83,11 +83,17 @@ typedef struct
 
 typedef struct
 {
-	u32 initialized;
-	u32 spu;
+	u32 numSpus;
+	struct
+	{
+		u32 initialized;
+		u32 spu;
+		u32 status;
+	} spudata[5];
+	efbConfig currentConfig;
 } efbData;
 
-efbData *efbInit(efbConfig *config);
+efbData *efbInit(u32 numSpus, efbConfig *config);
 void efbShutdown(efbData *efb);
 void efbUpdateConfig(efbData *efb,efbConfig *config);
 

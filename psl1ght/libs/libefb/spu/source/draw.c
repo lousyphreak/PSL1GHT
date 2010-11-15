@@ -126,6 +126,8 @@ void draw()
 {
 	u32 targetAddress=spu_readch(SPU_RdInMbox);
 	u32 sourceAddress=spu_readch(SPU_RdInMbox);
+	u32 startLine=spu_readch(SPU_RdInMbox);
+	u32 endLine=spu_readch(SPU_RdInMbox);
 
 	mfc_get(&inBuffer, sourceAddress, sizeof(inBuffer),1,0,0);
 	mfc_write_tag_mask(1<<1);
@@ -152,7 +154,7 @@ void draw()
 	spu_writech(SPU_WrOutMbox, (u32)(widthRatio*10000));
 	spu_writech(SPU_WrOutMbox, (u32)(heightRatio*10000));
 
-	for(u16 y=0;y<_config.height;y++)
+	for(u16 y=startLine;y<endLine;y++)
 	{
 		//spu_writech(SPU_WrOutMbox, 0x1100000|y);
 		u16 srcY=y*heightRatio;

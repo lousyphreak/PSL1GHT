@@ -38,10 +38,10 @@ u32 spuReadBlocking(u32 spu)
 	while (!(lv2SpuRawReadProblemStorage(spu, 0x4014) & 0xFF)) {
 		asm volatile("eieio" ::);
 		count++;
-		if(count>100000)
+		if(count>1000000)
 			break;
 	}
-	if(count>10000)
+	if(count>100000)
 		printf("readblocking failed\n");
 	u32 ret=lv2SpuRawReadProblemStorage(spu, SPU_Out_MBox);
 	//printf("SPU mailbox return value: 0x%08x\n", ret);

@@ -141,7 +141,7 @@ void drawFrame(buffer *buffer, long frame) {
 	cairo_surface_destroy(surface); // Flush and destroy the cairo surface
 }
 
-void init_efb()
+void init_efb(u32 numSpus)
 {
 	printf("sizeof(efbConfig)=%d\n",(u32)(u64)sizeof(efbConfig));
 	printf("sizeof(efbBuffer)=%d\n",(u32)(u64)sizeof(efbBuffer));
@@ -189,7 +189,7 @@ void init_efb()
 	//conf->height=128*6;//buffers[0]->height/2;
 	conf->width=buffers[0]->width;
 	conf->height=buffers[0]->height;
-	efbD=efbInit(conf);
+	efbD=efbInit(numSpus, conf);
 	printf("~efbInit(0x%08X)\n",(u32)(u64)efbD);
 	//free(conf);
 
@@ -211,13 +211,13 @@ s32 main(s32 argc, const char* argv[])
 	printf("ioPadInit()\n");
 	ioPadInit(7);
 	printf("init_efb()\n");
-	init_efb();
+	init_efb(5);
 
 	long frame = 0; // To keep track of how many frames we have rendered.
 	
 	// Ok, everything is setup. Now for the main loop.
 	while(1){
-		printf("frame\n");
+		//printf("frame\n");
 		// Check the pads.
 		ioPadGetInfo(&padinfo);
 		for(i=0; i<MAX_PADS; i++){
@@ -231,10 +231,10 @@ s32 main(s32 argc, const char* argv[])
 			
 		}
 
-		printf("waitFlip\n");
+		//printf("waitFlip\n");
 		waitFlip(); // Wait for the last flip to finish, so we can draw to the old buffer
 
-		printf("drawFrame\n");
+		//printf("drawFrame\n");
 		if(1)
 		{
 			//drawFrame(buffers[currentBuffer], frame); // Draw into the unused buffer6
@@ -250,11 +250,11 @@ s32 main(s32 argc, const char* argv[])
 					offscreenBuffers[0][xy]=xy*2;//%offWidth;
 			}
 		}
-		printf("efbBlitToScreen\n");
+		//printf("efbBlitToScreen\n");
 		efbBlitToScreen(efbD, buffers[currentBuffer]->ptr,efbBuffers[0]);
-		printf("flip\n");
+		//printf("flip\n");
 		flip(currentBuffer); // Flip buffer onto screen
-		printf("currentBuffer\n");
+		//printf("currentBuffer\n");
 		currentBuffer = !currentBuffer; 
 		frame++;
 		//if(frame>4)
