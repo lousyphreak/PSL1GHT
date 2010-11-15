@@ -17,6 +17,8 @@ u32 inBuffer2[BUFFERSIZE] __attribute__((aligned(128)));
 u32 inBuffer3[BUFFERSIZE] __attribute__((aligned(128)));
 u32 inBuffer4[BUFFERSIZE] __attribute__((aligned(128)));
 
+u32 inPalette[256] __attribute__((aligned(128)));
+
 #define SRC_PREBUFFER 1
 #define SRC_PREBUFFER_NEED 1
 #define TARGET_PREBUFFER 1
@@ -132,6 +134,14 @@ void draw()
 	mfc_get(&inBuffer, sourceAddress, sizeof(inBuffer),1,0,0);
 	mfc_write_tag_mask(1<<1);
 	mfc_read_tag_status_all();
+
+	if(inBuffer.paletteAddress!=0)
+	{
+		mfc_get(&inPalette, inBuffer.paletteAddress, sizeof(u32)*256,1,0,0);
+		mfc_write_tag_mask(1<<1);
+		mfc_read_tag_status_all();
+		inBuffer.paletteAddress=(u32)inPalette;
+	}
 
 	spu_writech(SPU_WrOutMbox, inBuffer.width);
 	spu_writech(SPU_WrOutMbox, inBuffer.height);

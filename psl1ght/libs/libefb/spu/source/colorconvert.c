@@ -16,7 +16,7 @@ u32 convertColor(efbBuffer *inBuffer, void *cacheLine, u16 x)
 	switch(inBuffer->bytesPerPixel)
 	{
 	case 1:
-		color=((u8*)cacheLine)[x];
+		color=((u32*)inBuffer->paletteAddress)[((u8*)cacheLine)[x]];
 		break;
 	case 2:
 		color=((u16*)cacheLine)[x];
