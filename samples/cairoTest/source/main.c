@@ -34,8 +34,8 @@ buffer *buffers[2]; // The buffer we will be drawing into.
 efbData *efbD;
 uint32_t *offscreenBuffers[2];
 efbBuffer *efbBuffers[2];
-u32 offWidth=128*1;
-u32 offHeight=128*1;
+u32 offWidth=128;
+u32 offHeight=128;
 //u32 offWidth=1920;
 //u32 offHeight=1080;
 
@@ -187,8 +187,10 @@ void init_efb(u32 numSpus)
 	efbConfig *conf=memalign(128,sizeof(efbConfig));
 	//conf->width=128*10;//buffers[0]->width/2;
 	//conf->height=128*6;//buffers[0]->height/2;
-	conf->width=buffers[0]->width;
-	conf->height=buffers[0]->height;
+	//conf->width=buffers[0]->width;
+	//conf->height=buffers[0]->height;
+	conf->width=1920;//buffers[0]->width;
+	conf->height=1080/4;//buffers[0]->height;
 	efbD=efbInit(numSpus, conf);
 	printf("~efbInit(0x%08X)\n",(u32)(u64)efbD);
 	//free(conf);
@@ -212,14 +214,14 @@ s32 main(s32 argc, const char* argv[])
 	printf("ioPadInit()\n");
 	ioPadInit(7);
 	printf("init_efb()\n");
-	init_efb(5);
+	init_efb(1);
 
 	long frame = 0; // To keep track of how many frames we have rendered.
 	
 	// Ok, everything is setup. Now for the main loop.
 	while(1){
 		u64 frameStart=sys_time_get_system_time();
-		//printf("frame\n");
+		printf("frame\n");
 		// Check the pads.
 		ioPadGetInfo(&padinfo);
 		for(i=0; i<MAX_PADS; i++){
@@ -235,11 +237,11 @@ s32 main(s32 argc, const char* argv[])
 
 		u64 afterPad=sys_time_get_system_time();
 		u64 afterWaitForBlit=sys_time_get_system_time();
-		//printf("waitFlip\n");
+		printf("waitFlip\n");
 		waitFlip(); // Wait for the last flip to finish, so we can draw to the old buffer
 
 		u64 afterWaitFlip=sys_time_get_system_time();
-		//printf("drawFrame\n");
+		printf("drawFrame\n");
 		if(1)
 		{
 			//drawFrame(buffers[currentBuffer], frame); // Draw into the unused buffer6
@@ -256,13 +258,13 @@ s32 main(s32 argc, const char* argv[])
 			}
 		}
 		u64 afterDraw=sys_time_get_system_time();
-		//printf("efbBlitToScreen\n");
+		printf("efbBlitToScreen\n");
 		efbBlitToScreen(efbD, buffers[currentBuffer]->ptr,efbBuffers[0]);
 		efbWaitForBlit(efbD);
-		//printf("flip\n");
+		printf("flip\n");
 		u64 afterBlit=sys_time_get_system_time();
 		flip(currentBuffer); // Flip buffer onto screen
-		//printf("currentBuffer\n");
+		printf("currentBuffer\n");
 		u64 afterFlip=sys_time_get_system_time();
 		currentBuffer = !currentBuffer; 
 		frame++;
@@ -278,6 +280,7 @@ s32 main(s32 argc, const char* argv[])
 		u64 totalTime=afterFlip-frameStart;
 
 		printf("%9ld, %9ld, %9ld, %9ld, %9ld, %9ld, %9ld\n",padTime,blitFlipWaitTime,flipWaitTime,drawTime,blitTime,flipTime,totalTime);
+		//break;
 	}
 	efbShutdown(efbD);
 	return 0;

@@ -96,7 +96,7 @@ void efbBlitToScreen(efbData *efb, void *framebuffer, efbBuffer *buffer)
 	for(i=0;i<efb->numSpus;i++)
 	{
 		finishOp(i);
-		//printf("efbBlitToScreen\n");
+		printf("efbBlitToScreen\n");
 		//printf("  EFB_COMMAND_DRAW\n");
 		u32 ret=spuWriteVerify(efb->spudata[i].spu,EFB_COMMAND_DRAW);
 		//printf("  inform spu: %d\n",efb->spudata[i].spu);
@@ -128,10 +128,10 @@ void efbWaitForBlit(efbData *efb)
 		u32 result=-1;
 		while(result!=EFB_RESPONSE_DRAW_FINISHED)
 		{
-			//printf("  read result\n");
+			printf("  read result\n");
 			//this should move to efbWaitForBlit
 			result=spuReadBlocking(efb->spudata[i].spu);
-			//printf("  result: 0x%08X\n",result);
+			printf("  result: 0x%08X\n",result);
 		}
 		efb->spudata[i].status=EFB_SPU_STATUS_IDLE;
 	}
