@@ -34,8 +34,8 @@ buffer *buffers[2]; // The buffer we will be drawing into.
 efbData *efbD;
 uint32_t *offscreenBuffers[2];
 efbBuffer *efbBuffers[2];
-u32 offWidth=128;
-u32 offHeight=128;
+u32 offWidth=320;
+u32 offHeight=200;
 //u32 offWidth=1920;
 //u32 offHeight=1080;
 
@@ -190,7 +190,7 @@ void init_efb(u32 numSpus)
 	//conf->width=buffers[0]->width;
 	//conf->height=buffers[0]->height;
 	conf->width=1920;//buffers[0]->width;
-	conf->height=1080/4;//buffers[0]->height;
+	conf->height=1080;//buffers[0]->height;
 	efbD=efbInit(numSpus, conf);
 	printf("~efbInit(0x%08X)\n",(u32)(u64)efbD);
 	//free(conf);

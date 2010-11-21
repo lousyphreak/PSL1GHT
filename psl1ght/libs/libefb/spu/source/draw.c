@@ -1,47 +1,33 @@
 #include "main.h"
 
-// size if inBuffer (u8)
-#define BUFFERSIZE_IN (1024*2*4)
-#define NUM_IN_BUFFERS 4
-
-// ring buffer for source data
-u8 inBuffer_raw0[BUFFERSIZE_IN] __attribute__((aligned(128)));
-u8 inBuffer_raw1[BUFFERSIZE_IN] __attribute__((aligned(128)));
-u8 inBuffer_raw2[BUFFERSIZE_IN] __attribute__((aligned(128)));
-u8 inBuffer_raw3[BUFFERSIZE_IN] __attribute__((aligned(128)));
 
 // size of ringbuffers (u32)
-#define BUFFERSIZE (1024*8)
+#define BUFFER_SEGMENT_SIZE (1024*2)
+#define BUFFER_SEGMENT_SIZE_BYTES (BUFFER_SEGMENT_SIZE*4)
 // buffer segments
-#define BUFFER_SEGMENT_LEN (BUFFERSIZE/4)
+#define BUFFER_SIZE (BUFFER_SEGMENT_SIZE*4)
+
+#define BUFFER_IN_SEGMENTS 4
+#define BUFFER_OUT_SEGMENTS 2
+
+#define BUFFER_IN_SIZE (BUFFER_SEGMENT_SIZE*BUFFER_IN_SEGMENTS)
+#define BUFFER_OUT_SIZE (BUFFER_SEGMENT_SIZE*BUFFER_OUT_SEGMENTS)
 
 // in buffer struct
 efbBuffer inBuffer __attribute__((aligned(128)));
 
 // ring buffer for converted source data
-u32 inBufferData[BUFFERSIZE] __attribute__((aligned(128)));
+u32 inBuffer_conv[BUFFER_IN_SIZE] __attribute__((aligned(128)));
 
 // ring buffer for target data
-u32 outBuffer[BUFFERSIZE] __attribute__((aligned(128)));
+u32 outBuffer[BUFFER_OUT_SIZE] __attribute__((aligned(128)));
 
 // buffer for palette (if exists)
 u32 inPalette[256] __attribute__((aligned(128)));
 
-#define MAKE_RING_ADDRESS(x) (x%BUFFERSIZE)
+// read buffer for source data
+u32 inBuffer_raw[BUFFER_SEGMENT_SIZE*2] __attribute__((aligned(128)));
 
-#define MAKE_RING_ADDRESS_IN(x) (x%BUFFERSIZE_IN)
-#define GET_RING_BUFFER_NUM(x) (x/BUFFERSIZE_IN)
-#define CLAMP_RING_BUFFER_NUM(x) (x%NUM_IN_BUFFERS)
-__attribute__((always_inline)) u8 *getInBufferRaw(u16 which)
-{
-	if(which==0)
-		return inBuffer_raw0;
-	if(which==1)
-		return inBuffer_raw1;
-	if(which==2)
-		return inBuffer_raw2;
-	return inBuffer_raw3;
-}
 
 
 
@@ -64,67 +50,80 @@ __attribute__((always_inline)) u8 *getInBufferRaw(u16 which)
 
 
 
-// last byte of source already buffered
-u32 srcBuffered=0;
+// last segment of source DMA started
+u32 srcDMA=-1;
+// last segment of source DMA finished and converted
+u32 srcCONV=0;
 
 /*
  * src: address of source buffer
- * begin: begin of required data (bytes)
- * end: end of required data (bytes)
+ * begin: begin of required data (pixel)
+ * end: end of required data (pixel)
  * totalsize: total size of inbuffer
  * bytes: bytes per pixel
  */
-void bufferSource(void *src/*, u32 begin*/, u32 end, u32 totalSize)
+void bufferSource(void *src, u32 end, u32 totalSize, u32 inSegmentBytes)
 {
-	//u16 ring_begin=GET_RING_BUFFER_NUM(begin);
-	u16 ring_end=GET_RING_BUFFER_NUM(end);
+	//u32 endSegment=end;
 
 	// skip if enough buffer ready, __builtin_expect for branch prediction
-	if(__builtin_expect ((srcBuffered>=ring_end), 1))
+	//if(__builtin_expect ((srcBuffered>=ring_end), 1))
+	if(srcCONV>end)
 		return;
 
 
-	u32 tag=1;
-	u32 tag_mask=1<<1;
-
-	u16 i;
-	// read all requested buffers
-	for(i=srcBuffered;i<=ring_end;i++)
+	// if the inbuffer is smaller than what we want...
+	//if(__builtin_expect ((startRead+BUFFERSIZE_IN>=totalSize), 0))
+	while(srcCONV<end)
 	{
-		// get the end where this read would lead to
-		u32 startRead=BUFFERSIZE_IN*i;
+		u32 tag=(srcCONV/BUFFER_SEGMENT_SIZE)%2;
+		u32 tagMask=1<<(2-tag);
+		u8 *target=&((u8*)inBuffer_raw)[tag*BUFFER_SEGMENT_SIZE_BYTES];
+		u8 *srcDMAPtr=src+(inBuffer.bytesPerPixel*srcDMA);
 
-		u8 *buffer=getInBufferRaw(CLAMP_RING_BUFFER_NUM(i));
-		void *srcp=src+startRead;
-
-		// if the inbuffer is smaller than what we want...
-		//if(__builtin_expect ((startRead+BUFFERSIZE_IN>=totalSize), 0))
-		if(startRead+BUFFERSIZE_IN>=totalSize)
+		if(srcDMA<totalSize)
 		{
-			// how much is left in the buffer
-			u32 restread=totalSize-startRead;
-			u32 rr;
-			// pad to allow dma (dont care for reading too much)
-			for(rr=32;rr<=restread;rr*=2);
-			// dma
-			mfc_get(buffer,(u64)(u32)srcp,BUFFERSIZE_IN,tag,0,0);
-		}
-		else // all fine, read
-		{
-			// dma
-			mfc_get(buffer,(u64)(u32)srcp,BUFFERSIZE_IN,tag,0,0);
-		}
+			if(srcDMA+BUFFER_SEGMENT_SIZE>=totalSize)
+			{
+				// how much is left in the buffer
+				u32 restread=totalSize-srcDMA;
+				u32 rr;
+				// pad to allow dma (dont care for reading too much)
+				for(rr=32;rr<=restread;rr*=2);
+				// dma
+				mfc_get(target,(u64)(u32)srcDMAPtr,rr*inBuffer.bytesPerPixel,tag+1,0,0);
+			}
+			else // all fine, read
+			{
+				// dma
+				mfc_get(target,(u64)(u32)srcDMAPtr,inSegmentBytes,tag+1,0,0);
+			}
+			srcDMA+=BUFFER_SEGMENT_SIZE;
 
-		srcBuffered=i;
+			if(srcDMA==srcCONV+BUFFER_SEGMENT_SIZE)
+				continue;
+		}
+		// wait on dma finished
+		mfc_write_tag_mask(tagMask);
+		mfc_read_tag_status_all();
+
+		//nth buffer
+		//u16 ring_segment=(startRead/BUFFER_SEGMENT_LEN_PIXEL)%4;
+
+		// color conversion and write to inBufferData
+		u8 *srcConvPtr=&((u8*)inBuffer_raw)[(1-tag)*BUFFER_SEGMENT_SIZE_BYTES];
+		u32 srcRead=srcCONV%BUFFER_IN_SIZE;
+
+		for(int j=0;j<BUFFER_SEGMENT_SIZE;j++)
+		{
+			inBuffer_conv[srcRead] = convertColor(&inBuffer,srcConvPtr,j);
+			//srcCONV++;
+			srcRead++;
+		}
+		srcCONV+=BUFFER_SEGMENT_SIZE;
+		//startRead=srcBuffered;
 	}
 
-	// wait on dma finished
-	mfc_write_tag_mask(tag_mask);
-	mfc_read_tag_status_all();
-
-	// color conversion and write to inBufferData
-	for(i=srcBuffered;i<=ring_end;i++)
-		inBufferData[MAKE_RING_ADDRESS(i)] = 0xFF00FF;//convertColor(&inBuffer,getInBufferRaw(CLAMP_RING_BUFFER_NUM(i)),1);
 	return;
 }
 // last byte of target already written
@@ -137,19 +136,22 @@ u32 targetBuffered=0;
  */
 void bufferTarget(void *target, u32 end, u32 totalSize)
 {
-	u32 tag=2;
+	u32 tag=10;
 
 	//write out in 128 byte blocks
-	if(targetBuffered+128<=end*4)
+	if(targetBuffered+BUFFER_SEGMENT_SIZE<=end)
 	{
-		mfc_put(&outBuffer[MAKE_RING_ADDRESS(targetBuffered/4)],((u64)(u32)target)+targetBuffered,128,tag,0,0);
+		u32 targetPixel=targetBuffered%BUFFER_OUT_SIZE;
+		//u16 ring_segment=(targetBuffered/BUFFER_SEGMENT_LEN_PIXEL)%4;
+		mfc_put(&outBuffer[targetPixel],((u64)(u32)target)+targetBuffered*4,BUFFER_SEGMENT_SIZE_BYTES,tag,0,0);
 		// step on
-		targetBuffered+=128;
+		targetBuffered+=BUFFER_SEGMENT_SIZE;
+
+		// wait for finish of the dma
+		mfc_write_tag_mask(1<<tag);
+		mfc_read_tag_status_all();
 	}
 
-	// wait for finish of the dma
-	mfc_write_tag_mask(1<<tag);
-	mfc_read_tag_status_all();
 
 	return;
 }
@@ -184,27 +186,26 @@ void draw()
 	float heightRatio=inBuffer.height/(float)_config.height;
 
 	// reset buffered status
-	srcBuffered=0;
+	srcDMA=0;
+	srcCONV=0;
 	targetBuffered=0;
 
-	// line pitch, source is calculated in bytes...
-	u16 sourcePitch=inBuffer.width*inBuffer.bytesPerPixel;
-	u32 sourceSize=inBuffer.width*inBuffer.height*inBuffer.bytesPerPixel;
-
-	// ... target in pixels
-	u16 targetPitch=_config.width;
+	// source and target size in pixels...
+	u32 sourceSize=inBuffer.width*inBuffer.height;
 	u32 targetSize=_config.width*_config.height;
 
+	u32 inSegmentBytes=BUFFER_SEGMENT_SIZE*inBuffer.bytesPerPixel;
+
 	// loop all assigned pixels
-	for(u32 targetPos=startLine*targetPitch;targetPos<endLine*targetPitch;targetPos++)
+	for(u32 targetPos=startLine*_config.width;targetPos<endLine*_config.width;targetPos++)
 	{
 		//rebuild source and target x/y for current pixel
-		u16 targetX=targetPos%targetPitch;
-		u16 targetY=targetPos/targetPitch;
+		u16 targetX=targetPos%_config.width;
+		u16 targetY=targetPos/_config.width;
 		u16 sourceX=targetX*widthRatio;
 		u16 sourceY=targetY*heightRatio;
 
-		u32 sourcePos=sourceX*inBuffer.bytesPerPixel+sourceY*sourcePitch;
+		u32 sourcePos=sourceX+sourceY*inBuffer.width;
 
 
 /** /
@@ -215,14 +216,29 @@ void draw()
 		spu_writech(SPU_WrOutMbox, MAKE_RING_ADDRESS(targetPos));//0x00001D1C
 		spu_writech(SPU_WrOutMbox, GET_RING_BUFFER_NUM(sourcePos));//0x00000001
 		spu_writech(SPU_WrOutMbox, (u32)(u64)getInBufferRaw(CLAMP_RING_BUFFER_NUM(srcBuffered)));//0x00009480
-/**/
+/ **/
 
+		//u16 target_ring_segment=(targetPos/BUFFER_SEGMENT_LEN_PIXEL)%4;
+		//u16 source_ring_segment=(sourcePos/BUFFER_SEGMENT_LEN_PIXEL)%4;
 		// make sure buffer is filled
-		bufferSource((void*)inBuffer.framebufferAddress,sourcePos,sourceSize);
+		bufferSource((void*)inBuffer.framebufferAddress,sourcePos,sourceSize,inSegmentBytes);
+
+		u32 srcIndex=sourcePos%BUFFER_IN_SIZE;
+		u32 targetIndex=targetPos%BUFFER_OUT_SIZE;
+
 
 		// move data into the outbuffer
-		outBuffer[MAKE_RING_ADDRESS(targetPos)]=inBufferData[MAKE_RING_ADDRESS(sourcePos)];
-
+		outBuffer[targetIndex]=inBuffer_conv[srcIndex];
+/*		vector int *buf=(vector int *)&outBuffer[targetIndex];
+		vector int data1=spu_splats(0xdd0000);
+		vector int data2=spu_splats(0x00dd00);
+		vector int data3=spu_splats(0x0000dd);
+		vector int data4=spu_splats(0x000000);
+		buf[0]=data1;
+		buf[1]=data2;
+		buf[2]=data3;
+		buf[3]=data4;
+*/
 		// write to the framebuffer
 		bufferTarget((void*)targetAddress,targetPos,targetSize);
 	}

@@ -6,6 +6,7 @@
 #include <malloc.h>
 #include <assert.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 
 //efbBuffer efbCreateBufferPalette2(u16 width, u16 height);
@@ -126,12 +127,16 @@ void efbWaitForBlit(efbData *efb)
 			break;
 
 		u32 result=-1;
+		u32 numWaits=0;
 		while(result!=EFB_RESPONSE_DRAW_FINISHED)
 		{
 			printf("  read result\n");
 			//this should move to efbWaitForBlit
 			result=spuReadBlocking(efb->spudata[i].spu);
 			printf("  result: 0x%08X\n",result);
+			numWaits++;
+			if(numWaits>20)
+				exit(0);
 		}
 		efb->spudata[i].status=EFB_SPU_STATUS_IDLE;
 	}
