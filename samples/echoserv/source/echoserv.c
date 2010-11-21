@@ -14,12 +14,14 @@
 #include <sys/types.h>        /*  socket types              */
 #include <arpa/inet.h>        /*  inet (3) funtions         */
 #include <unistd.h>           /*  misc. UNIX functions      */
+#include <sysmodule/sysmodule.h>
 
 #include "helper.h"           /*  our own helper functions  */
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 
 /*  Global constants  */
 
@@ -52,11 +54,14 @@ int main(int argc, char *argv[]) {
 		exit(EXIT_FAILURE);
     }
 
-	
+	printf("SysLoadModule(NET)=%d\n", SysLoadModule(SYSMODULE_NET));
+    printf("net_init()=%d\n", net_initialize_network());
+
     /*  Create the listening socket  */
 
     if ( (list_s = socket(AF_INET, SOCK_STREAM, 0)) < 0 ) {
 		fprintf(stderr, "ECHOSERV: Error creating listening socket.\n");
+		printf("errno: %d\n", errno);
 		exit(EXIT_FAILURE);
     }
 
@@ -82,7 +87,6 @@ int main(int argc, char *argv[]) {
 		fprintf(stderr, "ECHOSERV: Error calling listen()\n");
 		exit(EXIT_FAILURE);
     }
-
     char* message = "Welcome to ECHOServer test.\nType exit and hit enter to close app, otherwise type anything you want and hit enter and I will replay it back to you free of charge. :)";
     /*  Enter an infinite loop to respond
         to client requests and echo input  */
@@ -109,10 +113,13 @@ int main(int argc, char *argv[]) {
 
 		/*  Close the connected socket  */
 
-		if ( close(conn_s) < 0 ) {
-			fprintf(stderr, "ECHOSERV: Error calling close()\n");
+		if ( closesocket(conn_s) < 0 ) {
+			fprintf(stderr, "ECHOSERV: Error calling closesocket()\n");
 			exit(EXIT_FAILURE);
 		}
+
     }
+	net_finalize_network();
+	SysUnloadModule(SYSMODULE_NET);
 }
 

@@ -10,7 +10,7 @@ BUILD		:=	build
 SOURCE		:=	source
 INCLUDE		:=	include
 DATA		:=	data
-LIBS		:=	-laudio -lm 
+LIBS		:=	-laudio -lm
 
 TITLE		:=	Test Audio - PSL1GHT
 APPID		:=	TESTAUDIO

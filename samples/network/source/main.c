@@ -20,7 +20,7 @@
 // UDP: nc -u -l -p 4000
 // For some versions of netcat the -p option may need to be removed.
 #define TESTSTRING	"y halo thar\n"
-#define TESTIP		"192.168.1.13"
+#define TESTIP		"192.168.1.104"
 #define TESTPORT	4000
 
 void tcp_test()

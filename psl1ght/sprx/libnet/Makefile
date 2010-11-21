@@ -1,15 +1,18 @@
 .SUFFIXES:
--include ../Makefile.base
--include ../../Makefile.base
+
+-include ../../../Makefile.base
+-include ../../../../Makefile.base
 
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
-SOURCE		:=	source
-INCLUDE		:=	../include
+SOURCE		:=	../common
+INCLUDE		:=	. ../../include
 DATA		:=	data
-LIBS		:=	-lsysutil -lnet 
+LIBS		:=	
 
-CFLAGS		:= -g -O2 -Wall
+LD			:=	ppu-ld
+
+CFLAGS		:=	-m32
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 
@@ -41,14 +44,21 @@ $(BUILD):
 
 clean:
 	@echo Clean...
-	@rm -rf $(BUILD) $(OUTPUT).a
+	@rm -rf $(BUILD) $(OUTPUT).elf $(OUTPUT).self $(OUTPUT).a
 
 else
 
 DEPENDS	:= $(OFILES:.o=.d)
 
-$(OUTPUT).a: $(OFILES)
-$(OFILES): $(BINFILES)
+$(OUTPUT).a: sprx.o
+
+lib.o: lib.c
+	@echo "[CC]  $(notdir $<)"
+	@$(CC) $(DEPSOPTIONS) -S $(CFLAGS) $(INCLUDES) $< -o lib.S
+	@$(CC) $(DEPSOPTIONS) -c lib.S -o $@
+
+sprx.o: stub.o lib.o
+	@$(LD) -r stub.o lib.o -o $@
 
 -include $(DEPENDS)
 

@@ -12,7 +12,6 @@
 
 #include <zlib.h>
 #include <zip.h>
-#include <zipint.h>
 
 //#include <dirent.h>
 #define DT_DIR 1
@@ -63,7 +62,7 @@ void DeleteDirectory(const char* path)
 int main(int argc, const char* argv[], const char* envp[])
 {
 	printf("PS3Load " PS3LOAD_VERSION "\n");
-	
+
 	mkdir(ZIP_PATH, 0777);
 	DeleteDirectory(ZIP_PATH);
 
@@ -97,7 +96,7 @@ reloop:
 		if (read(c, &magic, sizeof(magic)) < 0)
 			continueloop();
 		u16 argslen = magic & 0xFFFF;
-		
+
 		u32 filesize = 0;
 		if (read(c, &filesize, sizeof(filesize)) < 0)
 			continueloop();

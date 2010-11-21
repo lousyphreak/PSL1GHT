@@ -43,6 +43,8 @@ struct linger
 	int l_linger;
 };
 
+#include <net/net.h>
+
 #define SOCK_STREAM		0x0001
 #define SOCK_DGRAM		0x0002
 #define SOCK_RAW		0x0003
@@ -95,6 +97,27 @@ struct linger
 
 EXTERN_BEGIN
 
+/* sprx func prototypes */
+int accept_sprx(int socket, const struct sockaddr* address, socklen_t* address_len);
+int bind_sprx(int socket, const struct sockaddr* address, socklen_t address_len);
+int connect_sprx(int socket, const struct sockaddr* address, socklen_t address_len);
+int getpeername_sprx(int socket, struct sockaddr* address, socklen_t* address_len);
+int getsockname_sprx(int socket, struct sockaddr* address, socklen_t* address_len);
+int getsockopt_sprx(int socket, int level, int option_name, void* option_value, socklen_t* option_len);
+int listen_sprx(int socket, int backlog);
+ssize_t recv_sprx(int socket, void* buffer, size_t length, int flags);
+ssize_t recvfrom_sprx(int socket, void* buffer, size_t length, int flags, struct sockaddr* address, socklen_t* address_len);
+ssize_t recvmsg_sprx(int socket, struct msghdr* message, int flags);
+ssize_t send_sprx(int socket, const void* message, size_t length, int flags);
+ssize_t sendto_sprx(int socket, const void* message, size_t length, int flags, const struct sockaddr* dest_addr, socklen_t dest_len);
+ssize_t sendmsg_sprx(int socket, const struct msghdr* message, int flags);
+int setsockopt_sprx(int socket, int level, int option_name, const void* option_value, socklen_t option_len);
+int shutdown_sprx(int socket, int how);
+int socket_sprx(int domain, int type, int protocol);
+int socketpair_sprx(int domain, int type, int protocol, int socket_vector[2]);
+s32 closesocket_sprx(int socket);
+
+/* normal func prototypes */
 int accept(int socket, const struct sockaddr* address, socklen_t* address_len);
 int bind(int socket, const struct sockaddr* address, socklen_t address_len);
 int connect(int socket, const struct sockaddr* address, socklen_t address_len);
@@ -116,5 +139,5 @@ int setsockopt(int socket, int level, int option_name, const void* option_value,
 int shutdown(int socket, int how);
 int socket(int domain, int type, int protocol);
 int socketpair(int domain, int type, int protocol, int socket_vector[2]);
-
+s32 closesocket(int socket);
 EXTERN_END

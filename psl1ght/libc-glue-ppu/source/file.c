@@ -65,11 +65,11 @@ int ftruncate(int fd, off_t length)
 	return lv2Errno(lv2FsFtruncate(fd, length));
 }
 
-int net_close(int fd);
+int closesocket(int fd);
 int close(int fd)
 {
 	if (fd & SOCKET_FD_MASK)
-		return net_close(fd);
+		return closesocket(fd);
 
 	return lv2Errno(lv2FsClose(fd));
 }

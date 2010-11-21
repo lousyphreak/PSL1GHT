@@ -275,7 +275,7 @@ int main (int argc, char **argv) {
 	char *arg_pos;
 	u16 args_len, args_left;
 
-	bool res;
+	bool res = 0;
 
 	printf ("ps3load v%u.%u\n"
 			"coded by dhewg, #wiidev efnet\n\n",

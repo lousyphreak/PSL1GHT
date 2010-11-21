@@ -1,15 +1,23 @@
 .SUFFIXES:
--include ../Makefile.base
--include ../../Makefile.base
+ifeq ($(strip $(PSL1GHT)),)
+$(error "PSL1GHT must be set in the environment.")
+endif
+
+include $(PSL1GHT)/Makefile.base
 
 TARGET		:=	$(notdir $(CURDIR))
 BUILD		:=	build
 SOURCE		:=	source
-INCLUDE		:=	../include
+INCLUDE		:=	include
 DATA		:=	data
-LIBS		:=	-lsysutil -lnet 
+LIBS		:=	-lgcm_sys -lreality -lsysutil -lio -lpng -lz -lm
 
-CFLAGS		:= -g -O2 -Wall
+TITLE		:=	Template - PSL1GHT
+APPID		:=	TEST00003
+CONTENTID	:=	UP0001-$(APPID)_00-0000000000000000
+
+CFLAGS		+= -g -O2 -Wall --std=gnu99
+CXXFLAGS	+= -g -O2 -Wall
 
 ifneq ($(BUILD),$(notdir $(CURDIR)))
 
@@ -41,13 +49,26 @@ $(BUILD):
 
 clean:
 	@echo Clean...
-	@rm -rf $(BUILD) $(OUTPUT).a
+	@rm -rf $(BUILD) $(OUTPUT).elf $(OUTPUT).self $(OUTPUT).a $(OUTPUT).pkg
+
+pkg: $(BUILD)
+	@echo Creating PKG...
+	@mkdir -p $(BUILD)/pkg
+	@mkdir -p $(BUILD)/pkg/USRDIR
+	@cp $(ICON0) $(BUILD)/pkg/
+	@$(FSELF) -n $(BUILD)/$(TARGET).elf $(BUILD)/pkg/USRDIR/EBOOT.BIN
+	@$(SFO) --title "$(TITLE)" --appid "$(APPID)" -f $(SFOXML) $(BUILD)/pkg/PARAM.SFO
+	@$(PKG) --contentid $(CONTENTID) $(BUILD)/pkg/ $(OUTPUT).pkg
+
+run: $(BUILD)
+	@$(PS3LOADAPP) $(OUTPUT).self
 
 else
 
 DEPENDS	:= $(OFILES:.o=.d)
 
-$(OUTPUT).a: $(OFILES)
+$(OUTPUT).self: $(OUTPUT).elf
+$(OUTPUT).elf: $(OFILES)
 $(OFILES): $(BINFILES)
 
 -include $(DEPENDS)
