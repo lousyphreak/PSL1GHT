@@ -62,28 +62,28 @@ u32 srcCONV=0;
  * totalsize: total size of inbuffer
  * bytes: bytes per pixel
  */
-void bufferSource(void *src, u32 end, u32 totalSize, u32 inSegmentBytes)
+__attribute((always_inline)) void bufferSource(void *src, u32 end, u32 totalSize, u32 inSegmentBytes)
 {
 	//u32 endSegment=end;
 
 	// skip if enough buffer ready, __builtin_expect for branch prediction
 	//if(__builtin_expect ((srcBuffered>=ring_end), 1))
-	if(srcCONV>end)
+	if(__builtin_expect ((srcCONV>end), 1))
 		return;
 
 
 	// if the inbuffer is smaller than what we want...
 	//if(__builtin_expect ((startRead+BUFFERSIZE_IN>=totalSize), 0))
-	while(srcCONV<end)
+	while(__builtin_expect ((srcCONV<end), 1))
 	{
 		u32 tag=(srcCONV/BUFFER_SEGMENT_SIZE)%2;
 		u32 tagMask=1<<(2-tag);
 		u8 *target=&((u8*)inBuffer_raw)[tag*BUFFER_SEGMENT_SIZE_BYTES];
 		u8 *srcDMAPtr=src+(inBuffer.bytesPerPixel*srcDMA);
 
-		if(srcDMA<totalSize)
+		if(__builtin_expect ((srcDMA<totalSize),1))
 		{
-			if(srcDMA+BUFFER_SEGMENT_SIZE>=totalSize)
+			if(__builtin_expect ((srcDMA+BUFFER_SEGMENT_SIZE>=totalSize),0))
 			{
 				// how much is left in the buffer
 				u32 restread=totalSize-srcDMA;
@@ -114,7 +114,7 @@ void bufferSource(void *src, u32 end, u32 totalSize, u32 inSegmentBytes)
 		u8 *srcConvPtr=&((u8*)inBuffer_raw)[(1-tag)*BUFFER_SEGMENT_SIZE_BYTES];
 		u32 srcRead=srcCONV%BUFFER_IN_SIZE;
 
-		for(int j=0;j<BUFFER_SEGMENT_SIZE;j++)
+		for(int j=0;__builtin_expect ((j<BUFFER_SEGMENT_SIZE),1);j++)
 		{
 			inBuffer_conv[srcRead] = convertColor(&inBuffer,srcConvPtr,j);
 			//srcCONV++;
@@ -134,12 +134,12 @@ u32 targetBuffered=0;
  * end: may flush up to (u32)
  * totalsize: total size of framebuffer (u32)
  */
-void bufferTarget(void *target, u32 end, u32 totalSize)
+__attribute((always_inline)) void bufferTarget(void *target, u32 end, u32 totalSize)
 {
 	u32 tag=10;
 
 	//write out in 128 byte blocks
-	if(targetBuffered+BUFFER_SEGMENT_SIZE<=end)
+	if(__builtin_expect ((targetBuffered+BUFFER_SEGMENT_SIZE<=end),0 ))
 	{
 		u32 targetPixel=targetBuffered%BUFFER_OUT_SIZE;
 		//u16 ring_segment=(targetBuffered/BUFFER_SEGMENT_LEN_PIXEL)%4;
@@ -197,7 +197,7 @@ void draw()
 	u32 inSegmentBytes=BUFFER_SEGMENT_SIZE*inBuffer.bytesPerPixel;
 
 	// loop all assigned pixels
-	for(u32 targetPos=startLine*_config.width;targetPos<endLine*_config.width;targetPos++)
+	for(u32 targetPos=startLine*_config.width;__builtin_expect ((targetPos<endLine*_config.width),1);targetPos++)
 	{
 		//rebuild source and target x/y for current pixel
 		u16 targetX=targetPos%_config.width;
