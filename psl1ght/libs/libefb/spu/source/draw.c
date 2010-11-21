@@ -148,8 +148,8 @@ __attribute((always_inline)) void bufferTarget(void *target, u32 end, u32 totalS
 		targetBuffered+=BUFFER_SEGMENT_SIZE;
 
 		// wait for finish of the dma
-		mfc_write_tag_mask(1<<tag);
-		mfc_read_tag_status_all();
+		//mfc_write_tag_mask(1<<tag);
+		//mfc_read_tag_status_all();
 	}
 
 
@@ -182,8 +182,8 @@ void draw()
 	}
 
 	// calculate ratios for scaling
-	float widthRatio=inBuffer.width/(float)_config.width;
-	float heightRatio=inBuffer.height/(float)_config.height;
+	//float widthRatio=inBuffer.width/(float)_config.width;
+	//float heightRatio=inBuffer.height/(float)_config.height;
 
 	// reset buffered status
 	srcDMA=0;
@@ -196,39 +196,70 @@ void draw()
 
 	u32 inSegmentBytes=BUFFER_SEGMENT_SIZE*inBuffer.bytesPerPixel;
 
+
+	//u16 targetX;
+	//u16 targetY;
+	//u16 sourceX;
+	//u16 sourceY;
+
+	//u32 sourcePos;
+
+	vector unsigned int inWidthV=spu_splats((unsigned int)inBuffer.width);
+	vector unsigned int offsets={0, 1, 2, 3 };
+	vector int sourceXV;
+	vector int sourceYV;
+	vector unsigned int targetXV;
+	vector unsigned int targetYV;
+
+	vector float widthRatioV=spu_splats(inBuffer.width/(float)_config.width);
+	vector float heightRatioV=spu_splats(inBuffer.height/(float)_config.height);
+
+	vector int sourcePosV;
+
 	// loop all assigned pixels
-	for(u32 targetPos=startLine*_config.width;__builtin_expect ((targetPos<endLine*_config.width),1);targetPos++)
+	for(u32 targetPos=startLine*_config.width;__builtin_expect ((targetPos<endLine*_config.width),1);targetPos+=4)
 	{
+		targetXV=spu_splats((targetPos%_config.width));
+		targetYV=spu_splats((targetPos/_config.width));
+
+		targetXV=spu_add(targetXV,offsets);
+
+		sourceYV=spu_convts(spu_mul(spu_convtf(targetYV, 0), heightRatioV),0);
+		sourceXV=spu_convts(spu_mul(spu_convtf(targetXV, 0), widthRatioV),0);
+
+		sourcePosV=spu_madd((vector short)inWidthV,(vector short)sourceYV,sourceXV);
+
 		//rebuild source and target x/y for current pixel
-		u16 targetX=targetPos%_config.width;
-		u16 targetY=targetPos/_config.width;
-		u16 sourceX=targetX*widthRatio;
-		u16 sourceY=targetY*heightRatio;
+		//targetX=targetPos%_config.width;
+		//targetY=targetPos/_config.width;
+		//sourceX=targetX*widthRatio;
+		//sourceY=targetY*heightRatio;
 
-		u32 sourcePos=sourceX+sourceY*inBuffer.width;
+		//sourcePos=sourceX+sourceY*inBuffer.width;
 
-
-/** /
-		spu_writech(SPU_WrOutMbox, 0xFFFFFFFF);
-		spu_writech(SPU_WrOutMbox, targetX);//0x0000001C
-		spu_writech(SPU_WrOutMbox, targetY);//0x0000003A
-		spu_writech(SPU_WrOutMbox, targetPos);//0x00001D1C
-		spu_writech(SPU_WrOutMbox, MAKE_RING_ADDRESS(targetPos));//0x00001D1C
-		spu_writech(SPU_WrOutMbox, GET_RING_BUFFER_NUM(sourcePos));//0x00000001
-		spu_writech(SPU_WrOutMbox, (u32)(u64)getInBufferRaw(CLAMP_RING_BUFFER_NUM(srcBuffered)));//0x00009480
-/ **/
-
-		//u16 target_ring_segment=(targetPos/BUFFER_SEGMENT_LEN_PIXEL)%4;
-		//u16 source_ring_segment=(sourcePos/BUFFER_SEGMENT_LEN_PIXEL)%4;
 		// make sure buffer is filled
-		bufferSource((void*)inBuffer.framebufferAddress,sourcePos,sourceSize,inSegmentBytes);
+		bufferSource((void*)inBuffer.framebufferAddress,(u32)spu_extract(sourcePosV,3),sourceSize,inSegmentBytes);
 
-		u32 srcIndex=sourcePos%BUFFER_IN_SIZE;
+		//u32 srcIndex=sourcePos%BUFFER_IN_SIZE;
 		u32 targetIndex=targetPos%BUFFER_OUT_SIZE;
+		vector unsigned int out={0,0,0,0};
+
+		u32 srcIndex;
+		srcIndex=((u32)spu_extract(sourcePosV,0))%BUFFER_IN_SIZE;
+		out=spu_insert(inBuffer_conv[srcIndex],out,0);
+
+		srcIndex=((u32)spu_extract(sourcePosV,1))%BUFFER_IN_SIZE;
+		out=spu_insert(inBuffer_conv[srcIndex],out,1);
+
+		srcIndex=((u32)spu_extract(sourcePosV,2))%BUFFER_IN_SIZE;
+		out=spu_insert(inBuffer_conv[srcIndex],out,2);
+
+		srcIndex=((u32)spu_extract(sourcePosV,3))%BUFFER_IN_SIZE;
+		out=spu_insert(inBuffer_conv[srcIndex],out,3);
 
 
 		// move data into the outbuffer
-		outBuffer[targetIndex]=inBuffer_conv[srcIndex];
+		*(vector unsigned int*)(&outBuffer[targetIndex])=out;//inBuffer_conv[srcIndex];
 /*		vector int *buf=(vector int *)&outBuffer[targetIndex];
 		vector int data1=spu_splats(0xdd0000);
 		vector int data2=spu_splats(0x00dd00);
